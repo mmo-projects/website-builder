@@ -57,7 +57,7 @@
   },
   "engines": {
     "node": "20",
-    "pnpm": "9.10.0",
+    "pnpm": ">=9.10.0",
     "yarn": "This project is configured to use pnpm"
   },
   "nano-staged": {
