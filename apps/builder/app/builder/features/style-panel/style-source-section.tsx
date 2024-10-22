@@ -11,7 +11,6 @@ import {
   type StyleSources,
   getStyleDeclKey,
 } from "@webstudio-is/sdk";
-import { parseCss } from "@webstudio-is/css-data";
 import {
   Flex,
   Dialog,
@@ -41,7 +40,6 @@ import {
   $styleSourceSelections,
   $styleSources,
   $styles,
-  $selectedBreakpoint,
 } from "~/shared/nano-states";
 import { removeByMutable } from "~/shared/array-utils";
 import { cloneStyles } from "~/shared/tree-utils";
@@ -394,50 +392,6 @@ const renameStyleSource = (
   });
 };
 
-const pasteStyles = async (
-  styleSourceId: StyleSource["id"],
-  state: undefined | string
-) => {
-  const text = await navigator.clipboard.readText();
-  const parsedStyles = parseCss(`selector{${text}}`, {
-    customProperties: true,
-  });
-  const breakpointId = $selectedBreakpoint.get()?.id;
-  const instanceId = $selectedInstanceSelector.get()?.[0];
-  if (breakpointId === undefined || instanceId === undefined) {
-    return;
-  }
-  serverSyncStore.createTransaction(
-    [$styles, $styleSources, $styleSourceSelections],
-    (styles, styleSources, styleSourceSelections) => {
-      // add local style source if does not exist yet
-      if (styleSources.has(styleSourceId) === false) {
-        styleSources.set(styleSourceId, { type: "local", id: styleSourceId });
-        let styleSourceSelection = styleSourceSelections.get(instanceId);
-        // create new style source selection
-        if (styleSourceSelection === undefined) {
-          styleSourceSelection = { instanceId, values: [styleSourceId] };
-          styleSourceSelections.set(instanceId, styleSourceSelection);
-        }
-        // append style source to existing selection
-        if (styleSourceSelection.values.includes(styleSourceId) === false) {
-          styleSourceSelection.values.push(styleSourceId);
-        }
-      }
-      for (const { property, value } of parsedStyles) {
-        const styleDecl: StyleDecl = {
-          breakpointId,
-          styleSourceId,
-          state,
-          property,
-          value,
-        };
-        styles.set(getStyleDeclKey(styleDecl), styleDecl);
-      }
-    }
-  );
-};
-
 const clearStyles = (styleSourceId: StyleSource["id"]) => {
   serverSyncStore.createTransaction([$styles], (styles) => {
     for (const [styleDeclKey, styleDecl] of styles) {
@@ -582,12 +536,6 @@ export const StyleSourcesSection = () => {
           convertLocalStyleSourceToToken(id);
           setEditingItem(id);
         }}
-        onPasteStyles={(styleSourceSelector) => {
-          pasteStyles(
-            styleSourceSelector.styleSourceId,
-            styleSourceSelector.state
-          );
-        }}
         onClearStyles={clearStyles}
         onRemoveItem={(id) => {
           removeStyleSourceFromInstance(id);
@@ -663,7 +611,7 @@ const DeleteConfirmationDialog = ({
       }}
     >
       <DialogContent>
-        <Flex gap="3" direction="column" css={{ padding: theme.spacing[9] }}>
+        <Flex gap="3" direction="column" css={{ padding: theme.panel.padding }}>
           <Text>{`Delete "${token}" token from the project including all of its styles?`}</Text>
           <Flex direction="rowReverse" gap="2">
             <DialogClose asChild>
